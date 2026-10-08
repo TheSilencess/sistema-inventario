@@ -12,9 +12,11 @@ import {
   Pager,
   useData,
   useDebounce,
+  money,
 } from "../components/ui";
 import { DateFilters, Dates, apiDates } from "../components/DateFilters";
 const options = [
+  ["profit", "Ganancias por ventas"],
   ["inventory", "Inventario actual"],
   ["low", "Stock bajo"],
   ["out", "Productos agotados"],
@@ -27,7 +29,7 @@ const options = [
 ];
 export default function Reports() {
   const { toast } = useUI();
-  const [report, setReport] = useState("inventory"),
+  const [report, setReport] = useState("profit"),
     [search, setSearch] = useState(""),
     [category, setCategory] = useState(""),
     [actor, setActor] = useState(""),
@@ -42,7 +44,19 @@ export default function Reports() {
     userId: actor || undefined,
     ...apiDates(dates),
   };
-  const list = useData<Page<Record<string, string | number>>>("/reports", {
+  const list = useData<
+    Page<Record<string, string | number>> & {
+      summary?: {
+        units: number;
+        revenue: string;
+        cost: string;
+        profit: string;
+        recordedProfit: string;
+        estimatedProfit: string;
+        estimatedUnits: number;
+      };
+    }
+  >("/reports", {
     ...params,
     page,
   });
@@ -54,6 +68,7 @@ export default function Reports() {
     "adjustment",
     "user",
     "product",
+    "profit",
   ].includes(report);
   const exportFile = async (format: "csv" | "pdf") => {
     setBusy(true);
@@ -118,6 +133,33 @@ export default function Reports() {
           </div>
         }
       />
+      {report === "profit" &&
+        list.data?.summary &&
+        !list.loading &&
+        !list.error && (
+          <>
+            <div className="stat-grid profit-cards">
+              {[
+                ["Ingresos por ventas", list.data.summary.revenue],
+                ["Costo de productos vendidos", list.data.summary.cost],
+                ["Ganancia bruta calculada", list.data.summary.profit],
+              ].map(([label, value]) => (
+                <div className="stat-card" key={label}>
+                  <div>{label}</div>
+                  <strong>{money(value)}</strong>
+                  <small>Total de todos los registros filtrados</small>
+                </div>
+              ))}
+            </div>
+            <div className="form-note">
+              {list.data.summary.units} unidades vendidas · Ganancia con precios
+              guardados: {money(list.data.summary.recordedProfit)} · Estimada
+              con precios actuales: {money(list.data.summary.estimatedProfit)} (
+              {list.data.summary.estimatedUnits} unidades antiguas). No
+              descuenta gastos, impuestos ni comisiones.
+            </div>
+          </>
+        )}
       <section className="panel no-pad">
         <div className="filters advanced">
           <Field label="Reporte">
@@ -193,9 +235,11 @@ export default function Reports() {
         </div>
         <div className="report-note">
           <FileText size={16} />
-          {isMovement
-            ? "Movimientos según el rango seleccionado."
-            : "Existencias actuales y valor al costo de compra actual; no es una valoración histórica."}
+          {report === "profit"
+            ? "Solo salidas registradas como venta. Ganancia = (venta - costo) × unidades. Los totales incluyen todas las páginas."
+            : isMovement
+              ? "Movimientos según el rango seleccionado."
+              : "Existencias actuales y valor al costo de compra actual; no es una valoración histórica."}
         </div>
         {list.loading ? (
           <Loading />

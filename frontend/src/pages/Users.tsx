@@ -78,8 +78,9 @@ export default function Users() {
       />
       <div className="form-note">
         <ShieldCheck size={18} />
-        Administradores y empleados comparten las funciones operativas. Solo los
-        administradores gestionan usuarios.
+        El empleado crea y edita productos y variantes, registra entradas y salidas, ajusta
+        stock, busca con filtros y configura su cuenta. El administrador tiene
+        acceso completo al sistema.
       </div>
       <section className="panel no-pad">
         <div className="filters">

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import PDFDocument from "pdfkit";
+import { renderReportPDF, ReportRow } from "../services/report-pdf";
+import { profitSummary } from "../services/profits";
 import { db } from "../config/db";
 import { route, ok, pagination, AppError } from "../utils/http";
 import { stockWhere, stockInclude } from "./inventory";
@@ -18,6 +19,7 @@ const reportQuery = z.object({
       "user",
       "product",
       "value",
+      "profit",
     ])
     .default("inventory"),
   format: z.enum(["json", "csv", "pdf"]).default("json"),
@@ -38,6 +40,7 @@ reportsRouter.get(
       "adjustment",
       "user",
       "product",
+      "profit",
     ].includes(r.report);
     const filters = {
       ...req.query,
@@ -62,7 +65,12 @@ reportsRouter.get(
     const data = await db.$transaction(
       async (tx) => {
         if (movement) {
-          const where = movementWhere(filters),
+          const where = {
+              ...movementWhere(filters),
+              ...(r.report === "profit"
+                ? { type: "EXIT" as const, isSale: true }
+                : {}),
+            },
             total = await tx.inventoryMovement.count({ where });
           if (r.format !== "json" && total > 10000)
             throw new AppError(
@@ -76,23 +84,56 @@ reportsRouter.get(
             take: limit,
             orderBy: { createdAt: "desc" },
           });
+          const summary =
+            r.report === "profit"
+              ? await profitSummary(tx, filters)
+              : undefined;
           return {
             total,
-            items: items.map((m) => ({
-              Fecha: m.createdAt.toISOString(),
-              Producto: m.variant.product.name,
-              SKU: m.variant.sku,
-              Variante:
-                [m.variant.size, m.variant.color].filter(Boolean).join(" / ") ||
-                "Única",
-              Tipo: m.type,
-              Cantidad: m.quantity,
-              Anterior: m.previousStock,
-              Posterior: m.resultingStock,
-              Usuario: m.user.name,
-              Motivo: m.reason,
-              Observaciones: m.notes,
-            })),
+            summary,
+            items: items.map((m): ReportRow =>
+              r.report === "profit"
+                ? {
+                    Fecha: m.createdAt.toISOString(),
+                    Producto: m.variant.product.name,
+                    SKU: m.variant.sku,
+                    Variante:
+                      [m.variant.size, m.variant.color]
+                        .filter(Boolean)
+                        .join(" / ") || "Única",
+                    Unidades: Math.abs(m.quantity),
+                    "Costo unitario": (
+                      m.unitCost ?? m.variant.product.purchasePrice
+                    ).toFixed(2),
+                    "Venta unitaria": (
+                      m.unitSalePrice ?? m.variant.product.salePrice
+                    ).toFixed(2),
+                    "Ganancia bruta": (
+                      m.unitSalePrice ?? m.variant.product.salePrice
+                    )
+                      .sub(m.unitCost ?? m.variant.product.purchasePrice)
+                      .mul(Math.abs(m.quantity))
+                      .toFixed(2),
+                    Usuario: m.user.name,
+                    Precios: m.unitCost !== null ? "Guardados" : "Estimados",
+                  }
+                : {
+                    Fecha: m.createdAt.toISOString(),
+                    Producto: m.variant.product.name,
+                    SKU: m.variant.sku,
+                    Variante:
+                      [m.variant.size, m.variant.color]
+                        .filter(Boolean)
+                        .join(" / ") || "Única",
+                    Tipo: m.type,
+                    Cantidad: m.quantity,
+                    Anterior: m.previousStock,
+                    Posterior: m.resultingStock,
+                    Usuario: m.user.name,
+                    Motivo: m.reason,
+                    Observaciones: m.notes,
+                  },
+            ),
           };
         }
         const where = stockWhere(filters),
@@ -111,7 +152,8 @@ reportsRouter.get(
         });
         return {
           total,
-          items: items.map((v) => ({
+          summary: undefined,
+          items: items.map((v): ReportRow => ({
             Producto: v.product.name,
             SKU: v.sku,
             Categoría: v.product.category.name,
@@ -121,6 +163,9 @@ reportsRouter.get(
             Mínimo: v.minimumStock,
             Costo: v.product.purchasePrice.toString(),
             Venta: v.product.salePrice.toString(),
+            "Margen unitario": v.product.salePrice
+              .sub(v.product.purchasePrice)
+              .toFixed(2),
             Valor: v.product.purchasePrice.mul(v.stock).toFixed(2),
           })),
         };
@@ -147,7 +192,37 @@ reportsRouter.get(
                 .map((h) => csv((row as Record<string, unknown>)[h]))
                 .join(","),
             ),
-          ].join("\r\n"),
+          ]
+            .concat(
+              data.summary
+                ? [
+                    "",
+                    [
+                      "RESUMEN TOTAL",
+                      "Unidades",
+                      "Ingresos",
+                      "Costos",
+                      "Ganancia bruta",
+                      "Ganancia registrada",
+                      "Ganancia estimada",
+                    ]
+                      .map(csv)
+                      .join(","),
+                    [
+                      "Todos los registros filtrados",
+                      data.summary.units,
+                      data.summary.revenue,
+                      data.summary.cost,
+                      data.summary.profit,
+                      data.summary.recordedProfit,
+                      data.summary.estimatedProfit,
+                    ]
+                      .map(csv)
+                      .join(","),
+                  ]
+                : [],
+            )
+            .join("\r\n"),
       );
     }
     res.setHeader(
@@ -155,25 +230,38 @@ reportsRouter.get(
       `attachment; filename="reporte-${r.report}.pdf"`,
     );
     res.type("application/pdf");
-    const doc = new PDFDocument({ margin: 42, size: "A4" });
-    doc.pipe(res);
-    doc.fontSize(20).text("Bodega · Reporte de " + r.report);
-    doc
-      .fontSize(9)
-      .text(
-        `Generado: ${new Date().toLocaleString("es-GT", { timeZone: "America/Guatemala" })} · Registros: ${data.total}`,
-      )
-      .moveDown();
-    if (!data.items.length) doc.text("No hay registros para estos filtros.");
-    for (const row of data.items) {
-      const text = Object.entries(row)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("   |   ");
-      const height = doc.heightOfString(text, { width: 510 }) + 14;
-      if (doc.y + height > doc.page.height - 55) doc.addPage();
-      doc.fontSize(9).text(text, { width: 510 }).moveDown(0.6);
-    }
-    doc.end();
+    const from =
+      typeof req.query.from === "string"
+        ? new Date(req.query.from).toLocaleDateString("es-GT", {
+            timeZone: "America/Guatemala",
+          })
+        : "Sin fecha inicial";
+    const to =
+      typeof req.query.to === "string"
+        ? new Date(req.query.to).toLocaleDateString("es-GT", {
+            timeZone: "America/Guatemala",
+          })
+        : "Sin fecha final";
+    const category =
+      typeof req.query.categoryId === "string"
+        ? await db.category.findUnique({
+            where: { id: req.query.categoryId },
+            select: { name: true },
+          })
+        : null;
+    const actor =
+      typeof req.query.userId === "string"
+        ? await db.user.findUnique({
+            where: { id: req.query.userId },
+            select: { name: true },
+          })
+        : null;
+    renderReportPDF(res, r.report, data.items, {
+      total: data.total,
+      author: req.actor.name,
+      summary: data.summary,
+      filters: `Periodo: ${movement ? from + " al " + to : "Existencias actuales"} | Categoría: ${category?.name || "Todas"} | Usuario: ${actor?.name || "Todos"} | Búsqueda: ${q.search || "Sin filtro"}`,
+    });
     return undefined;
   }),
 );

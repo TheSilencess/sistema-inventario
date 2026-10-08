@@ -1499,3 +1499,21 @@ select {
     transition: none !important;
   }
 }
+
+.profit-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+.filters > .field {
+  min-width: 130px;
+  flex: 1;
+  margin: 0;
+}
+.stat-card > strong {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .profit-cards {
+    grid-template-columns: 1fr;
+  }
+}

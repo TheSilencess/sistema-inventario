@@ -17,6 +17,7 @@ export const movement = z.discriminatedUnion("type", [
     .object({
       ...common,
       type: z.literal("EXIT"),
+      isSale: z.boolean().optional(),
       quantity: z.number().int().min(1).max(1000000),
     })
     .strict(),

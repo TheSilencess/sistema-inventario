@@ -94,6 +94,14 @@ async function main() {
         .status,
       403,
     );
+    for (const path of ["/dashboard", "/reports", "/reports?format=pdf", "/movements", "/movements/actors"]) {
+      assert.equal((await call(path, "GET", undefined, et)).status, 403);
+    }
+    assert.equal((await call("/categories", "POST", { name: "Forbidden" }, et)).status, 403);
+    assert.equal((await call("/categories/" + cat.id, "PATCH", { name: "Forbidden" }, et)).status, 403);
+    assert.equal((await call("/categories", "GET", undefined, et)).status, 200);
+    assert.equal((await call("/inventory", "GET", undefined, et)).status, 200);
+    assert.equal((await call("/auth/me", "GET", undefined, et)).status, 200);
     const p = await data<{
       id: string;
       variants: { id: string; stock: number }[];
@@ -140,6 +148,11 @@ async function main() {
       ).status,
       422,
     );
+    assert.equal((await call("/products/" + p.id, "PATCH", { description: "Editado por empleada" }, et)).status, 200);
+    assert.equal((await call("/products/" + p.id + "/variants/" + variantId, "PATCH", { barcode: "TEST-" + suffix }, et)).status, 200);
+    assert.equal((await call("/products/" + p.id, "DELETE", undefined, et)).status, 403);
+    assert.equal((await call("/products/" + p.id, "PATCH", { status: "INACTIVE" }, et)).status, 403);
+    assert.equal((await call("/products/" + p.id + "/variants/" + variantId, "PATCH", { status: "INACTIVE" }, et)).status, 403);
     const entry = {
       type: "ENTRY",
       variantId,
@@ -259,7 +272,7 @@ async function main() {
     const history = await data<{
       total: number;
       items: { user: { id: string } }[];
-    }>(await call("/movements?productId=" + p.id, "GET", undefined, et));
+    }>(await call("/movements?productId=" + p.id, "GET", undefined, token));
     assert.equal(history.total, 4);
     assert.ok(history.items.every((i) => i.user.id === employee.id));
     const inventory = await data<{ total: number }>(
@@ -267,7 +280,7 @@ async function main() {
         "/inventory?categoryId=" + cat.id + "&stockStatus=LOW",
         "GET",
         undefined,
-        et,
+        token,
       ),
     );
     assert.equal(inventory.total, 1);
@@ -276,16 +289,16 @@ async function main() {
         "/inventory?categoryId=" + cat.id + "&stockStatus=OUT",
         "GET",
         undefined,
-        et,
+        token,
       ),
     );
     assert.equal(out.total, 1);
-    await data<JsonObject>(await call("/dashboard", "GET", undefined, et));
+    await data<JsonObject>(await call("/dashboard", "GET", undefined, token));
     const csv = await call(
       "/reports?report=inventory&format=csv&categoryId=" + cat.id,
       "GET",
       undefined,
-      et,
+      token,
     );
     assert.ok(csv.ok);
     assert.ok((await csv.text()).includes("Zapato test"));
@@ -293,7 +306,7 @@ async function main() {
       "/reports?report=entry&format=pdf&categoryId=" + cat.id,
       "GET",
       undefined,
-      et,
+      token,
     );
     assert.ok(pdf.ok);
     assert.equal(
@@ -303,18 +316,134 @@ async function main() {
       "%PDF",
     );
     await data(
-      await call("/products/" + p.id, "PATCH", { name: "Zapato editado" }, et),
+      await call("/products/" + p.id, "PATCH", { name: "Zapato editado" }, token),
     );
     await data(
       await call(
         "/products/" + p.id + "/variants/" + variantId,
         "PATCH",
         { minimumStock: 3 },
-        et,
+        token,
       ),
     );
+    const facets = await data<{ sizes: string[]; colors: string[] }>(
+      await call(
+        "/products/variant-options?search=" + p.id,
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    void facets;
+    const filtered = await data<{
+      total: number;
+      items: { variants: { size: string; color: string }[] }[];
+    }>(
+      await call(
+        "/products?search=P-" + suffix + "&size=42&color=Blanco",
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    assert.equal(filtered.total, 1);
+    assert.equal(filtered.items[0].variants.length, 1);
+    const mismatch = await data<{ total: number }>(
+      await call(
+        "/products?search=P-" + suffix + "&size=42&color=Negro",
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    assert.equal(mismatch.total, 0);
+    const skuMismatch = await data<{ total: number }>(
+      await call(
+        "/inventory?search=V-" + suffix + "&size=43&color=Negro",
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    assert.equal(skuMismatch.total, 0);
+    const opts = await data<{ sizes: string[]; colors: string[] }>(
+      await call(
+        "/products/variant-options?search=P-" + suffix,
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    assert.deepEqual(opts.sizes, ["42", "43"]);
+    assert.equal(opts.colors.length, 2);
+    const profit = await data<{ summary: { profit: string; units: number } }>(
+      await call(
+        "/reports?report=profit&categoryId=" + cat.id,
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    assert.equal(profit.summary.profit, "199.00");
+    assert.equal(profit.summary.units, 4);
     await data(
-      await call("/products/" + p.id, "PATCH", { status: "INACTIVE" }, et),
+      await call(
+        "/products/" + p.id,
+        "PATCH",
+        { purchasePrice: "1.00", salePrice: "2.00" },
+        token,
+      ),
+    );
+    const preserved = await data<{ summary: { profit: string } }>(
+      await call(
+        "/reports?report=profit&categoryId=" + cat.id,
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    assert.equal(preserved.summary.profit, "199.00");
+    await data(
+      await call(
+        "/inventory/movements",
+        "POST",
+        {
+          type: "EXIT",
+          variantId,
+          quantity: 1,
+          isSale: true,
+          reason: "Factura prueba",
+          requestId: randomUUID(),
+        },
+        token,
+      ),
+    );
+    const paged = await data<{
+      total: number;
+      items: unknown[];
+      summary: { profit: string; units: number };
+    }>(
+      await call(
+        "/reports?report=profit&limit=1&categoryId=" + cat.id,
+        "GET",
+        undefined,
+        token,
+      ),
+    );
+    assert.equal(paged.total, 2);
+    assert.equal(paged.items.length, 1);
+    assert.equal(paged.summary.profit, "200.00");
+    assert.equal(paged.summary.units, 5);
+    await data(await call("/products/" + p.id + "/variants", "POST", { sku: "V3-" + suffix, size: "44", color: "Azul" }, et));
+    const profitCsv = await call(
+      "/reports?report=profit&format=csv&categoryId=" + cat.id,
+      "GET",
+      undefined,
+      token,
+    );
+    assert.ok((await profitCsv.text()).includes("RESUMEN TOTAL"));
+    await data(
+      await call("/products/" + p.id, "PATCH", { status: "INACTIVE" }, token),
     );
     assert.equal(
       (
@@ -322,7 +451,7 @@ async function main() {
           "/inventory/movements",
           "POST",
           { ...entry, requestId: randomUUID() },
-          et,
+          token,
         )
       ).status,
       409,

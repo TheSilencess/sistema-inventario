@@ -60,6 +60,74 @@ const include = {
   category: true,
   variants: { orderBy: { createdAt: "asc" as const } },
 };
+export const variantFilters = z.object({
+  size: z.string().trim().max(30).optional(),
+  color: z.string().trim().max(50).optional(),
+});
+export function matchingVariants(
+  search: string,
+  size?: string,
+  color?: string,
+  status?: "ACTIVE" | "INACTIVE",
+): Prisma.ProductVariantWhereInput {
+  return {
+    size: size ? { equals: size, mode: "insensitive" } : undefined,
+    color: color ? { equals: color, mode: "insensitive" } : undefined,
+    status,
+    ...(search
+      ? {
+          OR: [
+            { sku: { contains: search, mode: "insensitive" } },
+            { barcode: { contains: search, mode: "insensitive" } },
+            {
+              product: {
+                OR: [
+                  { sku: { contains: search, mode: "insensitive" } },
+                  { name: { contains: search, mode: "insensitive" } },
+                  { brand: { contains: search, mode: "insensitive" } },
+                  { barcode: { contains: search, mode: "insensitive" } },
+                ],
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+}
+productsRouter.get(
+  "/variant-options",
+  route(async (req, res) => {
+    const q = pagination(req.query);
+    const f = z
+      .object({
+        categoryId: z.string().uuid().optional(),
+        status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+      })
+      .parse(req.query);
+    const where: Prisma.ProductVariantWhereInput = {
+      ...matchingVariants(q.search, undefined, undefined, f.status),
+      product: { ...productWhere(q.search), ...f },
+    };
+    const [sizes, colors] = await db.$transaction([
+      db.productVariant.findMany({
+        where: { ...where, size: { not: "" } },
+        select: { size: true },
+        distinct: ["size"],
+        orderBy: { size: "asc" },
+      }),
+      db.productVariant.findMany({
+        where: { ...where, color: { not: "" } },
+        select: { color: true },
+        distinct: ["color"],
+        orderBy: { color: "asc" },
+      }),
+    ]);
+    return ok(res, {
+      sizes: sizes.map((v) => v.size),
+      colors: colors.map((v) => v.color),
+    });
+  }),
+);
 productsRouter.get(
   "/",
   route(async (req, res) => {
@@ -70,11 +138,28 @@ productsRouter.get(
         status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
       })
       .parse(req.query);
-    const where = { ...productWhere(q.search), ...filters };
+    const vf = variantFilters.parse(req.query);
+    const variantWhere = matchingVariants(
+      q.search,
+      vf.size,
+      vf.color,
+      filters.status,
+    );
+    const where: Prisma.ProductWhereInput = {
+      ...productWhere(q.search),
+      ...filters,
+      ...(vf.size || vf.color ? { variants: { some: variantWhere } } : {}),
+    };
     const [items, total] = await db.$transaction([
       db.product.findMany({
         where,
-        include,
+        include: {
+          ...include,
+          variants: {
+            ...include.variants,
+            ...(vf.size || vf.color ? { where: variantWhere } : {}),
+          },
+        },
         skip: q.skip,
         take: q.limit,
         orderBy: { [q.sortBy]: q.sortOrder },

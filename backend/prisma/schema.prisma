@@ -100,11 +100,15 @@ model InventoryMovement {
   notes String @default("")
   userId String @db.Uuid
   user User @relation(fields: [userId], references: [id])
+  isSale Boolean @default(false)
+  unitCost Decimal? @db.Decimal(12,2)
+  unitSalePrice Decimal? @db.Decimal(12,2)
   requestId String @unique @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   @@index([createdAt, type])
   @@index([variantId, createdAt])
   @@index([userId, createdAt])
+  @@index([isSale, createdAt])
 }
 model AuditLog {
   id String @id @default(uuid()) @db.Uuid

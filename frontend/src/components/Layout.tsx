@@ -82,7 +82,7 @@ export default function Layout() {
         <p className="nav-label">GESTIÓN</p>
         <nav>
           {links
-            .filter(([path]) => path !== "/users" || user?.role === "ADMIN")
+            .filter(([path]) => user?.role === "ADMIN" || !["/", "/users", "/categories", "/history", "/reports"].includes(path))
             .map(([path, label, Icon]) => (
               <NavLink
                 end={path === "/"}

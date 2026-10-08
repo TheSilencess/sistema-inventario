@@ -46,6 +46,6 @@ async function validate(req: Parameters<RequestHandler>[0]) {
 }
 export const admin: RequestHandler = (req, _res, next) => {
   if (req.actor.role !== "ADMIN")
-    next(new AppError(403, "Solo un administrador puede gestionar usuarios."));
+    next(new AppError(403, "Esta acción requiere permisos de administrador."));
   else next();
 };

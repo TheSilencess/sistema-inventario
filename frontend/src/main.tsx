@@ -27,8 +27,12 @@ function Protected({ admin = false }: { admin?: boolean }) {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
-  if (admin && user.role !== "ADMIN") return <Navigate to="/" replace />;
+  if (admin && user.role !== "ADMIN") return <Navigate to="/products" replace />;
   return <Outlet />;
+}
+function Home() {
+  const { user } = useAuth();
+  return user?.role === "ADMIN" ? <Dashboard /> : <Navigate to="/products" replace />;
 }
 createRoot(document.getElementById("root")!).render(
   <UIProvider>
@@ -39,10 +43,12 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/login" element={<Login />} />
             <Route element={<Protected />}>
               <Route element={<Layout />}>
-                <Route index element={<Dashboard />} />
+                <Route index element={<Home />} />
                 <Route path="products" element={<Products />} />
                 <Route path="inventory" element={<Inventory />} />
-                <Route path="categories" element={<Categories />} />
+                <Route element={<Protected admin />}>
+<Route path="categories" element={<Categories />} />
+</Route>
                 <Route
                   path="entries"
                   element={<MovementForm key="entry" type="ENTRY" />}
@@ -55,8 +61,12 @@ createRoot(document.getElementById("root")!).render(
                   path="adjustments"
                   element={<MovementForm key="adjustment" type="ADJUSTMENT" />}
                 />
-                <Route path="history" element={<History />} />
-                <Route path="reports" element={<Reports />} />
+                <Route element={<Protected admin />}>
+<Route path="history" element={<History />} />
+</Route>
+                <Route element={<Protected admin />}>
+<Route path="reports" element={<Reports />} />
+</Route>
                 <Route element={<Protected admin />}>
                   <Route path="users" element={<Users />} />
                 </Route>

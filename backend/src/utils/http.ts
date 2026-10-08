@@ -68,14 +68,12 @@ export function errors(
     return;
   }
   if (error instanceof ZodError) {
-    res
-      .status(422)
-      .json({
-        error: {
-          message: "Revise los datos ingresados.",
-          details: error.flatten(),
-        },
-      });
+    res.status(422).json({
+      error: {
+        message: "Revise los datos ingresados.",
+        details: error.flatten(),
+      },
+    });
     return;
   }
   if (error instanceof AppError) {
@@ -93,20 +91,18 @@ export function errors(
             : error.code === "P2034"
               ? 409
               : 500;
-    res
-      .status(status)
-      .json({
-        error: {
-          message:
-            status === 409
-              ? "Registro duplicado o conflicto; actualice e intente nuevamente."
-              : status === 404
-                ? "Registro no encontrado."
-                : status === 422
-                  ? "Referencia inválida."
-                  : "Error interno.",
-        },
-      });
+    res.status(status).json({
+      error: {
+        message:
+          status === 409
+            ? "Registro duplicado o conflicto; actualice e intente nuevamente."
+            : status === 404
+              ? "Registro no encontrado."
+              : status === 422
+                ? "Referencia inválida."
+                : "Error interno.",
+      },
+    });
     return;
   }
   console.error(

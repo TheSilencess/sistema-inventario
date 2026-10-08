@@ -1,3 +1,4 @@
+import VariantFilters from "../components/VariantFilters";
 import { useState, FormEvent, useEffect } from "react";
 import {
   Search,
@@ -28,6 +29,9 @@ export default function MovementForm({
 }) {
   const { toast } = useUI();
   const [search, setSearch] = useState(""),
+    [size, setSize] = useState(""),
+    [color, setColor] = useState(""),
+    [isSale, setIsSale] = useState(false),
     [product, setProduct] = useState<Product>(),
     [variantId, setVariantId] = useState(""),
     [quantity, setQuantity] = useState(""),
@@ -39,7 +43,13 @@ export default function MovementForm({
   const q = useDebounce(search);
   const results = useData<Page<Product>>(
     "/products",
-    { search: q, status: "ACTIVE", limit: 20 },
+    {
+      search: q,
+      size: size || undefined,
+      color: color || undefined,
+      status: "ACTIVE",
+      limit: 20,
+    },
     version,
   );
   const variant = product?.variants.find((v) => v.id === variantId);
@@ -97,6 +107,7 @@ export default function MovementForm({
         reason,
         notes,
         requestId,
+        ...(type === "EXIT" ? { isSale } : {}),
         ...(type === "ADJUSTMENT"
           ? { newStock: n, expectedStock: variant.stock }
           : { quantity: n }),
@@ -112,6 +123,9 @@ export default function MovementForm({
       setVariantId("");
       setQuantity("");
       setReason("");
+      setIsSale(false);
+      setSize("");
+      setColor("");
       setNotes("");
       setSearch("");
       setVersion((v) => v + 1);
@@ -149,8 +163,33 @@ export default function MovementForm({
             <input
               aria-label="Buscar producto para movimiento"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSize("");
+                setColor("");
+                setProduct(undefined);
+                setVariantId("");
+              }}
               placeholder="Buscar en el catálogo…"
+            />
+          </div>
+          <div className="filters">
+            <VariantFilters
+              search={q}
+              size={size}
+              color={color}
+              status="ACTIVE"
+              version={version}
+              onSize={(v) => {
+                setSize(v);
+                setProduct(undefined);
+                setVariantId("");
+              }}
+              onColor={(v) => {
+                setColor(v);
+                setProduct(undefined);
+                setVariantId("");
+              }}
             />
           </div>
           <div className="product-results">
@@ -268,6 +307,10 @@ export default function MovementForm({
                   value={reason}
                   onChange={(e) => {
                     setReason(e.target.value);
+                    if (type === "EXIT")
+                      setIsSale(
+                        e.target.value.trim().toLowerCase() === "venta",
+                      );
                     setRequestId(crypto.randomUUID());
                   }}
                   placeholder={
@@ -307,6 +350,20 @@ export default function MovementForm({
                 }}
               />
             </Field>
+            {type === "EXIT" && (
+              <label className="check-field">
+                <input
+                  type="checkbox"
+                  checked={isSale}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setIsSale(e.target.checked);
+                    setRequestId(crypto.randomUUID());
+                  }}
+                />
+                Registrar como venta (incluir en ganancias)
+              </label>
+            )}
             <div className="form-note">
               <ShieldCheck size={16} />
               Se registrará el usuario responsable, la fecha y el stock antes y

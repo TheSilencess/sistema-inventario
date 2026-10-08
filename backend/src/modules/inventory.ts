@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "../config/db";
 import { route, ok, pagination } from "../utils/http";
-import { productWhere } from "./products";
+import { productWhere, variantFilters, matchingVariants } from "./products";
 import { recordMovement } from "../services/inventory";
 import { movement } from "../validators/inventory";
 export const inventoryRouter = Router();
@@ -15,7 +15,9 @@ export const stockFilters = z.object({
 export function stockWhere(query: unknown): Prisma.ProductVariantWhereInput {
   const q = pagination(query);
   const f = stockFilters.parse(query);
+  const vf = variantFilters.parse(query);
   return {
+    ...matchingVariants(q.search, vf.size, vf.color, f.status),
     status: f.status,
     product: {
       ...productWhere(q.search),

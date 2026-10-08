@@ -126,7 +126,7 @@ Los campos del login comienzan vacíos. Después de ingresar puedes cambiar la c
 4. Registra una **entrada** para cargar stock inicial. No se permite editar existencias desde el formulario de productos.
 5. Registra salidas o ajustes. Un ajuste requiere el stock que se mostró al abrir el formulario: si otra persona movió mercancía, se solicita actualizar antes de confirmar.
 6. Consulta inventario, historial y reportes. Las exportaciones CSV/PDF usan las mismas consultas y filtros del backend.
-7. Un ADMIN puede crear, editar, activar, desactivar, cambiar roles y restablecer contraseñas. Un EMPLOYEE comparte todas las funciones operativas pero recibe HTTP 403 en `/api/users`.
+7. Un ADMIN puede crear, editar, activar, desactivar, cambiar roles y restablecer contraseñas. Un EMPLOYEE puede crear productos y variantes, buscar productos con filtros, consultar inventario, registrar entradas/salidas y ajustar stock. También edita la información de productos y variantes existentes. Solo configura su propia cuenta. Dashboard, historial, reportes, gestión de categorías/usuarios y eliminación o desactivación de productos/variantes requieren ADMIN. Puede consultar categorías para seleccionar una al crear productos.
 
 Una categoría inactiva deja de aceptar nuevas asignaciones; sus productos existentes conservan su estado y operación. Los productos/variantes se desactivan sin borrar registros ni stock. Los movimientos conservan las FK del producto por medio de la variante; nombres y costos mostrados corresponden al catálogo actual. El valor del inventario es el stock activo multiplicado por el costo de compra actual, no una contabilidad FIFO ni una valoración histórica.
 
@@ -228,3 +228,22 @@ npm run test:integration
 ```
 
 El script arranca el servidor temporalmente, prueba login, permisos, variantes, entradas, salidas, ajuste, historial, dashboard, usuarios, exportaciones y concurrencia. Crea registros con un sufijo aleatorio y los limpia al terminar; no debe ejecutarse contra producción. Consulta `VERIFICATION.md` para ver cuáles verificaciones se ejecutaron durante esta entrega.
+
+## Actualización: tallas, colores y ganancias
+
+La búsqueda por SKU incluye desplegables de talla y color en Productos, Inventario y selección de productos de Entradas/Salidas/Ajustes. Ambos filtros deben coincidir con la misma variante.
+
+Reportes incluye **Ganancias por ventas**: (precio de venta - costo) × unidades vendidas. Solo incluye salidas registradas como venta. Se guardan los precios de cada movimiento nuevo, por lo que editar precios del producto no cambia esas ganancias históricas. Las salidas antiguas cuyo motivo era «Venta» se identifican como ventas; sus precios anteriores no estaban guardados, por lo que se muestran como estimados usando los precios actuales. Otras salidas antiguas no se reclasifican automáticamente. La ganancia es bruta y no descuenta gastos, impuestos ni comisiones. Los totales abarcan todos los registros filtrados, no solo la página visible.
+
+Los PDF tienen diseño horizontal, encabezados y filtros, tablas por tipo de reporte, filas con texto ajustado, totales y numeración. Incluye una muestra con datos ficticios en `docs/reporte-ganancias-ejemplo.pdf`.
+
+Para actualizar una instalación existente: conserva tus archivos `.env`, copia el código actualizado y ejecuta en `backend`:
+
+```bash
+npm ci
+npm run prisma:generate
+npm run prisma:deploy
+npm run build
+```
+
+En `frontend`, ejecuta `npm ci` y `npm run build` (o reinicia `npm run dev` en desarrollo). Reinicia también el backend. La migración conserva productos, stock, usuarios e historial; no uses `prisma migrate reset`.

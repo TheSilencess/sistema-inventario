@@ -1,3 +1,4 @@
+import VariantFilters from "../components/VariantFilters";
 import { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Search, ArrowDownToLine, Package } from "lucide-react";
@@ -19,11 +20,15 @@ export default function Inventory() {
     [stock, setStock] = useState(params.get("stock") || ""),
     [category, setCategory] = useState(""),
     [search, setSearch] = useState(""),
+    [size, setSize] = useState(""),
+    [color, setColor] = useState(""),
     [page, setPage] = useState(1);
   const q = useDebounce(search);
   const list = useData<Page<Variant>>("/inventory", {
     page,
     search: q,
+    size: size || undefined,
+    color: color || undefined,
     stockStatus: stock || undefined,
     categoryId: category || undefined,
   });
@@ -69,10 +74,27 @@ export default function Inventory() {
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
+                setSize("");
+                setColor("");
                 setPage(1);
               }}
             />
           </div>
+          <VariantFilters
+            search={q}
+            size={size}
+            color={color}
+            categoryId={category}
+            status="ACTIVE"
+            onSize={(v) => {
+              setSize(v);
+              setPage(1);
+            }}
+            onColor={(v) => {
+              setColor(v);
+              setPage(1);
+            }}
+          />
           <select
             aria-label="Categoría"
             value={category}

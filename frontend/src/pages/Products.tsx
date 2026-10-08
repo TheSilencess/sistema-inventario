@@ -1,3 +1,5 @@
+import { useAuth } from "../contexts/Auth";
+import VariantFilters from "../components/VariantFilters";
 import { useState, FormEvent } from "react";
 import { Plus, Search, Pencil, Package, Layers, Trash2 } from "lucide-react";
 import type { Product, Variant, Category, Page } from "../types";
@@ -59,8 +61,12 @@ const blankV: VDraft = {
   status: "ACTIVE",
 };
 export default function Products() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const { toast } = useUI();
   const [search, setSearch] = useState(""),
+    [size, setSize] = useState(""),
+    [color, setColor] = useState(""),
     [category, setCategory] = useState(""),
     [status, setStatus] = useState(""),
     [page, setPage] = useState(1),
@@ -71,6 +77,8 @@ export default function Products() {
     {
       page,
       search: query,
+      size: size || undefined,
+      color: color || undefined,
       categoryId: category || undefined,
       status: status || undefined,
     },
@@ -119,7 +127,8 @@ export default function Products() {
       return;
     setBusy(true);
     try {
-      const { hasVariants, ...base } = draft;
+      const { hasVariants, status, ...fields } = draft;
+      const base = { ...fields, ...(isAdmin ? { status } : {}) };
       const data = {
         ...base,
         barcode: base.barcode || null,
@@ -167,7 +176,7 @@ export default function Products() {
       await save(
         vEdit ? "patch" : "post",
         `/products/${detail.id}/variants${vEdit ? `/${vEdit.id}` : ""}`,
-        { ...vDraft, barcode: vDraft.barcode || null },
+        { ...vDraft, status: isAdmin ? vDraft.status : undefined, barcode: vDraft.barcode || null },
       );
       toast("Variante guardada correctamente.");
       setVEdit(undefined);
@@ -252,10 +261,28 @@ export default function Products() {
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
+                setSize("");
+                setColor("");
                 setPage(1);
               }}
             />
           </div>
+          <VariantFilters
+            search={query}
+            size={size}
+            color={color}
+            categoryId={category}
+            status={status}
+            version={version}
+            onSize={(v) => {
+              setSize(v);
+              setPage(1);
+            }}
+            onColor={(v) => {
+              setColor(v);
+              setPage(1);
+            }}
+          />
           <select
             aria-label="Categoría"
             value={category}
@@ -296,7 +323,7 @@ export default function Products() {
                   <tr>
                     <th>Producto</th>
                     <th>Categoría</th>
-                    <th>Stock total</th>
+                    <th>{size || color ? "Stock filtrado" : "Stock total"}</th>
                     <th>Compra / Venta</th>
                     <th>Estado</th>
                     <th>Acciones</th>
@@ -341,14 +368,14 @@ export default function Products() {
                       </td>
                       <td>
                         <div className="row-actions">
-                          <button
+                          {<button
                             className="icon-btn"
                             aria-label={`Editar ${p.name}`}
                             title="Editar producto"
                             onClick={() => open(p)}
                           >
                             <Pencil size={16} />
-                          </button>
+                          </button>}
                           <button
                             className="icon-btn"
                             aria-label={`Variantes de ${p.name}`}
@@ -456,6 +483,7 @@ export default function Products() {
               </Field>
               <Field label="Estado">
                 <select
+                  disabled={!isAdmin}
                   value={draft.status}
                   onChange={(e) =>
                     setDraft({
@@ -571,7 +599,7 @@ export default function Products() {
               </div>
               <Badge stock={v.stock} min={v.minimumStock} status={v.status} />
               <strong>{v.stock} ud.</strong>
-              <button
+              {<button
                 className="icon-btn"
                 aria-label="Editar variante"
                 onClick={() => {
@@ -587,7 +615,7 @@ export default function Products() {
                 }}
               >
                 <Pencil size={16} />
-              </button>
+              </button>}
             </div>
           ))}
           {detail.hasVariants && (
@@ -616,6 +644,7 @@ export default function Products() {
               {vdFields(vDraft, setVDraft, !detail.hasVariants)}
               <Field label="Estado">
                 <select
+                  disabled={!isAdmin}
                   value={vDraft.status}
                   onChange={(e) =>
                     setVDraft({

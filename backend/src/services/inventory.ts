@@ -3,6 +3,9 @@ import { AppError, audit } from "../utils/http";
 import { MovementInput } from "../validators/inventory";
 import { calculateStock } from "./stock";
 export async function recordMovement(input: MovementInput, userId: string) {
+  const isSale =
+    input.type === "EXIT" &&
+    (input.isSale ?? input.reason.trim().toLowerCase() === "venta");
   return transaction(async (tx) => {
     const existing = await tx.inventoryMovement.findUnique({
       where: { requestId: input.requestId },
@@ -16,6 +19,7 @@ export async function recordMovement(input: MovementInput, userId: string) {
         existing.type !== input.type ||
         existing.reason !== input.reason ||
         existing.notes !== input.notes ||
+        existing.isSale !== isSale ||
         (input.type === "ADJUSTMENT"
           ? existing.resultingStock
           : Math.abs(existing.quantity)) !== expectedQuantity
@@ -53,6 +57,9 @@ export async function recordMovement(input: MovementInput, userId: string) {
         reason: input.reason,
         notes: input.notes,
         requestId: input.requestId,
+        isSale,
+        unitCost: v.product.purchasePrice,
+        unitSalePrice: v.product.salePrice,
         ...calculated,
       },
     });
