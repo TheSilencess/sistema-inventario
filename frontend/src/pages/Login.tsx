@@ -1,7 +1,6 @@
 import { useState, FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
-  Warehouse,
   ArrowRight,
   ShieldCheck,
   Boxes,
@@ -19,15 +18,18 @@ export default function Login() {
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [busy, setBusy] = useState(false),
-    [visible, setVisible] = useState(false);
+    [visible, setVisible] = useState(false),
+    [errorText, setErrorText] = useState("");
   if (user) return <Navigate to="/" replace />;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setErrorText("");
     try {
       await login(email, password);
       nav("/");
     } catch (error) {
+      setErrorText(message(error));
       toast(message(error), "error");
     } finally {
       setBusy(false);
@@ -37,21 +39,21 @@ export default function Login() {
     <div className="login-page">
       <section className="login-art">
         <div className="brand">
-          <Warehouse size={32} />
+          <span className="login-monogram" aria-hidden="true">K</span>
           <div>
-            Bodega<span>INVENTARIO & CONTROL</span>
+            KADOSH<span>MODA · INVENTARIO</span>
           </div>
         </div>
         <div>
-          <span className="pill">CADA UNIDAD CUENTA</span>
+          <span className="pill">EL ORDEN TAMBIÉN ES ESTILO</span>
           <h1>
-            Todo en orden.
+            Cada detalle.
             <br />
-            <em>Siempre.</em>
+            En su lugar.
           </h1>
           <p>
             Un espacio para organizar tus productos, seguir cada movimiento y
-            tener el control de tu bodega.
+            tener el control de tu inventario.
           </p>
           <div className="art-cards">
             <div>
@@ -73,10 +75,13 @@ export default function Login() {
           <div className="eyebrow">BIENVENIDO A TU ESPACIO</div>
           <h2>Iniciar sesión</h2>
           <p className="muted">Ingresa tus credenciales para continuar.</p>
-          <form onSubmit={submit}>
+          <form onSubmit={submit} aria-busy={busy}>
+            {errorText && <div className="login-error" id="login-error" role="alert">{errorText}</div>}
             <Field label="Correo electrónico">
               <input
                 type="email"
+                disabled={busy}
+                aria-describedby={errorText ? "login-error" : undefined}
                 required
                 autoComplete="username"
                 value={email}
@@ -88,6 +93,8 @@ export default function Login() {
               <div className="password-field">
                 <input
                   type={visible ? "text" : "password"}
+                  disabled={busy}
+                  aria-describedby={errorText ? "login-error" : undefined}
                   required
                   maxLength={72}
                   autoComplete="current-password"
@@ -98,6 +105,7 @@ export default function Login() {
                 <button
                   type="button"
                   aria-label="Mostrar u ocultar contraseña"
+                  aria-pressed={visible}
                   onClick={() => setVisible((v) => !v)}
                 >
                   {visible ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -105,7 +113,7 @@ export default function Login() {
               </div>
             </Field>
             <Submit busy={busy}>
-              Entrar a la bodega <ArrowRight size={18} />
+              Iniciar sesión <ArrowRight size={18} />
             </Submit>
           </form>
           <div className="login-help">

@@ -1,0 +1,16 @@
+{
+  "pass": [
+    "Login: validación persistente de credenciales incorrectas",
+    "Sesión y tema oscuro restaurados tras recargar",
+    "Diez secciones administrativas: navegación y carga con API real",
+    "Modal: foco capturado, Escape y foco restaurado",
+    "Filtro de stock sincronizado con navegación dentro de la pantalla",
+    "Fechas: periodo seleccionado y edición personalizada",
+    "Editar solo nombre conserva sesión; payload omite role y active sin cambios",
+    "Respuesta perdida: reintento conserva requestId, una sola entrada; controles bloqueados durante envío",
+    "Diez secciones sin desbordamiento de página a 768, 390 y 320px",
+    "Menú móvil: fondo inerte, foco capturado, Escape, restauración y ocultación accesible",
+    "Sin errores JavaScript de renderizado"
+  ],
+  "errors": []
+}

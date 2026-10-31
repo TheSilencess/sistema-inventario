@@ -247,12 +247,13 @@ export default function Reports() {
           <ErrorBox error={list.error} retry={list.reload} />
         ) : list.data?.items.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabla de resultados del reporte" tabIndex={0}>
+              <p className="table-hint">Desplaza la tabla para ver todas las columnas →</p>
               <table>
                 <thead>
                   <tr>
                     {columns.map((c) => (
-                      <th key={c}>{c}</th>
+                      <th scope="col" key={c}>{c}</th>
                     ))}
                   </tr>
                 </thead>

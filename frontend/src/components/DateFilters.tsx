@@ -28,12 +28,17 @@ export function DateFilters({
   value: Dates;
   onChange: (d: Dates) => void;
 }) {
+  const selected = !value.from && !value.to ? "all" :
+    ["today", "week", "month"].find((range) => {
+      const dates = preset(range);
+      return dates.from === value.from && dates.to === value.to;
+    }) || "custom";
   return (
     <>
       <Field label="Periodo">
         <select
           aria-label="Periodo"
-          value="custom"
+          value={selected}
           onChange={(e) =>
             onChange(
               e.target.value === "all"
@@ -42,7 +47,7 @@ export function DateFilters({
             )
           }
         >
-          <option value="custom">Seleccionar periodo</option>
+          <option value="custom" disabled>Periodo personalizado</option>
           <option value="all">Todo el historial</option>
           <option value="today">Hoy</option>
           <option value="week">Esta semana</option>

@@ -1,0 +1,15 @@
+{
+  "pass": [
+    "Formulario de producto: creación con tallas/colores, agregar/quitar variantes y búsqueda por SKU",
+    "Formularios de edición de producto y variante",
+    "Entradas, salidas como venta y ajuste desde formularios: stock 0→10→7→6; ganancia Q297.00",
+    "Reporte filtrado y respuesta PDF válida recibida por navegador; evento de descarga iniciado",
+    "Creación de categoría desde formulario",
+    "Creación de empleado desde formulario, sin modificar permisos",
+    "Empleado: inicio en Productos, menú limitado y redirección de rutas administrativas",
+    "Configuración: cambio de contraseña QA, cierre de sesión y nuevo login"
+  ],
+  "limitations": [
+    "Chrome headless cancela el guardado del archivo: canceled. Una prueba mínima de Blob fuera de la aplicación tampoco completó la descarga."
+  ]
+}

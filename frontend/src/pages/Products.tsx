@@ -317,16 +317,17 @@ export default function Products() {
           <ErrorBox error={list.error} retry={list.reload} />
         ) : list.data?.items.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabla de productos" tabIndex={0}>
+              <p className="table-hint">Desplaza la tabla para ver todas las columnas →</p>
               <table>
                 <thead>
                   <tr>
-                    <th>Producto</th>
-                    <th>Categoría</th>
-                    <th>{size || color ? "Stock filtrado" : "Stock total"}</th>
-                    <th>Compra / Venta</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
+                    <th scope="col">Producto</th>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">{size || color ? "Stock filtrado" : "Stock total"}</th>
+                    <th scope="col">Compra / Venta</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -535,6 +536,7 @@ export default function Products() {
                         <button
                           type="button"
                           className="icon-btn"
+                          aria-label={`Quitar variante ${i + 1}`}
                           onClick={() =>
                             setVariants((vs) => vs.filter((_, n) => n !== i))
                           }

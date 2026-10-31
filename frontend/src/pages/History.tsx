@@ -115,17 +115,18 @@ export default function History() {
           <ErrorBox error={list.error} retry={list.reload} />
         ) : list.data?.items.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabla de historial de movimientos" tabIndex={0}>
+              <p className="table-hint">Desplaza la tabla para ver todas las columnas →</p>
               <table>
                 <thead>
                   <tr>
-                    <th>Fecha</th>
-                    <th>Producto / Variante</th>
-                    <th>Tipo</th>
-                    <th>Cantidad</th>
-                    <th>Stock antes → después</th>
-                    <th>Usuario</th>
-                    <th>Motivo</th>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Producto / Variante</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">Cantidad</th>
+                    <th scope="col">Stock antes → después</th>
+                    <th scope="col">Usuario</th>
+                    <th scope="col">Motivo</th>
                   </tr>
                 </thead>
                 <tbody>

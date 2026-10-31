@@ -1,5 +1,5 @@
 import VariantFilters from "../components/VariantFilters";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Search, ArrowDownToLine, Package } from "lucide-react";
 import type { Page, Variant, Category } from "../types";
@@ -16,7 +16,7 @@ import {
   money,
 } from "../components/ui";
 export default function Inventory() {
-  const [params] = useSearchParams(),
+  const [params, setParams] = useSearchParams(),
     [stock, setStock] = useState(params.get("stock") || ""),
     [category, setCategory] = useState(""),
     [search, setSearch] = useState(""),
@@ -24,6 +24,11 @@ export default function Inventory() {
     [color, setColor] = useState(""),
     [page, setPage] = useState(1);
   const q = useDebounce(search);
+  const stockParam = params.get("stock") || "";
+  useEffect(() => {
+    setStock(stockParam);
+    setPage(1);
+  }, [stockParam]);
   const list = useData<Page<Variant>>("/inventory", {
     page,
     search: q,
@@ -55,8 +60,15 @@ export default function Inventory() {
           <button
             key={value}
             className={stock === value ? "active" : ""}
+            aria-pressed={stock === value}
             onClick={() => {
               setStock(value);
+              setParams((current) => {
+                const next = new URLSearchParams(current);
+                if (value) next.set("stock", value);
+                else next.delete("stock");
+                return next;
+              });
               setPage(1);
             }}
           >
@@ -117,17 +129,18 @@ export default function Inventory() {
           <ErrorBox error={list.error} retry={list.reload} />
         ) : list.data?.items.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabla de inventario" tabIndex={0}>
+              <p className="table-hint">Desplaza la tabla para ver todas las columnas →</p>
               <table>
                 <thead>
                   <tr>
-                    <th>Producto / SKU</th>
-                    <th>Categoría</th>
-                    <th>Variante</th>
-                    <th>Stock actual</th>
-                    <th>Mínimo</th>
-                    <th>Estado</th>
-                    <th>Valor</th>
+                    <th scope="col">Producto / SKU</th>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">Variante</th>
+                    <th scope="col">Stock actual</th>
+                    <th scope="col">Mínimo</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Valor</th>
                   </tr>
                 </thead>
                 <tbody>

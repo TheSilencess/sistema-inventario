@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Boxes,
@@ -16,7 +16,6 @@ import {
   Moon,
   Menu,
   X,
-  Warehouse,
   Check,
   SlidersHorizontal,
 } from "lucide-react";
@@ -42,6 +41,47 @@ export default function Layout() {
   const [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false);
   const nav = useNavigate();
+  const location = useLocation();
+  const sidebar = useRef<HTMLElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const current = links.find(([path]) => path === location.pathname)?.[1] || "Panel de gestión";
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    content.current?.setAttribute("inert", "");
+    const focusFrame = requestAnimationFrame(() => {
+      sidebar.current?.querySelector<HTMLButtonElement>(".mobile-close")?.focus();
+    });
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Tab") return;
+      const nodes = Array.from(sidebar.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled)',
+      ) || []).filter((node) => node.getClientRects().length);
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (!sidebar.current?.contains(document.activeElement)) {
+        event.preventDefault(); (event.shiftKey ? last : first)?.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus();
+      }
+    };
+    const desktop = window.matchMedia("(min-width: 761px)");
+    const resize = () => { if (desktop.matches) setOpen(false); };
+    desktop.addEventListener("change", resize);
+    document.addEventListener("keydown", keyboard);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      desktop.removeEventListener("change", resize);
+      document.removeEventListener("keydown", keyboard);
+      document.body.style.overflow = before;
+      content.current?.removeAttribute("inert");
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [open]);
   const exit = async () => {
     setBusy(true);
     try {
@@ -55,14 +95,15 @@ export default function Layout() {
   };
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Saltar al contenido</a>
       {open && <div className="drawer-shade" onClick={() => setOpen(false)} />}
-      <aside className={`sidebar ${open ? "open" : ""}`}>
+      <aside id="navigation" ref={sidebar} className={`sidebar ${open ? "open" : ""}`} aria-label="Navegación principal">
         <div className="brand">
           <span className="brand-icon">
-            <Warehouse size={24} />
+            K
           </span>
           <div>
-            Bodega<span>INVENTARIO & CONTROL</span>
+            KADOSH<span>MODA · INVENTARIO</span>
           </div>
           <button
             className="mobile-close icon-btn"
@@ -73,14 +114,14 @@ export default function Layout() {
           </button>
         </div>
         <div className="workspace">
-          <span className="workspace-avatar">B</span>
+          <span className="workspace-avatar">K</span>
           <div>
-            Bodega principal<small>Espacio de trabajo</small>
+            Kadosh<small>Control de inventario</small>
           </div>
           <Check size={16} />
         </div>
         <p className="nav-label">GESTIÓN</p>
-        <nav>
+        <nav aria-label="Secciones del sistema">
           {links
             .filter(([path]) => user?.role === "ADMIN" || !["/", "/users", "/categories", "/history", "/reports"].includes(path))
             .map(([path, label, Icon]) => (
@@ -113,24 +154,26 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-      <div className="main-shell">
+      <div className="main-shell" ref={content}>
         <header className="topbar">
           <div>
             <button
               className="mobile-menu icon-btn"
               onClick={() => setOpen(true)}
               aria-label="Abrir menú"
+              aria-expanded={open}
+              aria-controls="navigation"
             >
               <Menu size={22} />
             </button>
-            <span className="muted">Bodega principal</span>
+            <span className="muted">Kadosh</span>
             <span className="top-divider">/</span>
-            <strong>Panel de gestión</strong>
+            <strong>{current}</strong>
           </div>
           <div>
             <span className="live-dot" />
             <span className="muted top-date">
-              {new Date().toLocaleDateString("es-GT", { dateStyle: "long" })}
+              {new Date().toLocaleDateString("es-GT", { dateStyle: "long", timeZone: "America/Guatemala" })}
             </span>
             <button
               className="icon-btn"
@@ -143,11 +186,11 @@ export default function Layout() {
             <span className="avatar small">{user?.name[0]}</span>
           </div>
         </header>
-        <main>
+        <main id="main-content" tabIndex={-1}>
           <Outlet />
         </main>
         <footer>
-          Bodega · Tu inventario, bajo control.
+          KADOSH · Cada detalle, en orden.
           <span>Zona horaria: Guatemala · Moneda: GTQ</span>
         </footer>
       </div>

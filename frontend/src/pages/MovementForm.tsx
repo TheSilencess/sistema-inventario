@@ -1,5 +1,6 @@
 import VariantFilters from "../components/VariantFilters";
-import { useState, FormEvent, useEffect } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
+import { isAxiosError } from "axios";
 import {
   Search,
   ArrowRight,
@@ -28,6 +29,7 @@ export default function MovementForm({
   type: "ENTRY" | "EXIT" | "ADJUSTMENT";
 }) {
   const { toast } = useUI();
+  const sending = useRef(false);
   const [search, setSearch] = useState(""),
     [size, setSize] = useState(""),
     [color, setColor] = useState(""),
@@ -82,12 +84,14 @@ export default function MovementForm({
     setRequestId(crypto.randomUUID());
   }, [type]);
   const select = (p: Product) => {
+    if (sending.current || product?.id === p.id) return;
     setProduct(p);
     setVariantId(p.variants.find((v) => v.status === "ACTIVE")?.id || "");
     setRequestId(crypto.randomUUID());
   };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (sending.current) return;
     if (!variant) return;
     if (next < 0) {
       toast("Stock insuficiente.", "error");
@@ -99,6 +103,7 @@ export default function MovementForm({
       )
     )
       return;
+    sending.current = true;
     setBusy(true);
     try {
       await save("post", "/inventory/movements", {
@@ -131,11 +136,16 @@ export default function MovementForm({
       setVersion((v) => v + 1);
       setRequestId(crypto.randomUUID());
     } catch (error) {
-      toast(message(error), "error");
-      setVersion((v) => v + 1);
-      setProduct(undefined);
-      setVariantId("");
+      if (isAxiosError(error) && !error.response) {
+        toast("No se pudo confirmar la operación. Reintenta sin cambiar los datos para evitar duplicados.", "error");
+      } else {
+        toast(message(error), "error");
+        setVersion((v) => v + 1);
+        setProduct(undefined);
+        setVariantId("");
+      }
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
@@ -149,7 +159,7 @@ export default function MovementForm({
             : "Registra mercancía con control y trazabilidad."
         }
       />
-      <div className="operation-grid">
+      <fieldset className="operation-grid" disabled={busy} aria-label="Registro de movimiento" aria-busy={busy}>
         <section className="panel">
           <div className="panel-title">
             <div>
@@ -372,7 +382,7 @@ export default function MovementForm({
             <Submit busy={busy}>{title}</Submit>
           </form>
         </section>
-      </div>
+      </fieldset>
     </>
   );
 }

@@ -146,8 +146,8 @@ export default function Dashboard() {
             <AreaChart data={data.chart}>
               <defs>
                 <linearGradient id="entry" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#357f6b" stopOpacity={0.2} />
-                  <stop offset="100%" stopColor="#357f6b" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--chart-entry)" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="var(--chart-entry)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -180,7 +180,7 @@ export default function Dashboard() {
                 type="monotone"
                 dataKey="entry"
                 name="Entradas"
-                stroke="#357f6b"
+                stroke="var(--chart-entry)"
                 strokeWidth={2.5}
                 fill="url(#entry)"
               />
@@ -189,7 +189,7 @@ export default function Dashboard() {
                 type="monotone"
                 dataKey="exit"
                 name="Salidas"
-                stroke="#d59464"
+                stroke="var(--chart-exit)"
                 strokeWidth={2}
                 fill="transparent"
               />
@@ -229,7 +229,7 @@ export default function Dashboard() {
                   isAnimationActive={false}
                   dataKey="units"
                   name="Unidades"
-                  fill="#357f6b"
+                  fill="var(--chart-entry)"
                   radius={[0, 5, 5, 0]}
                   barSize={22}
                 />
@@ -252,14 +252,15 @@ export default function Dashboard() {
             </Link>
           </div>
           {data.recent.length ? (
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabla de movimientos recientes" tabIndex={0}>
+              <p className="table-hint">Desplaza la tabla para ver todas las columnas →</p>
               <table>
                 <thead>
                   <tr>
-                    <th>Producto</th>
-                    <th>Movimiento</th>
-                    <th>Cantidad</th>
-                    <th>Responsable</th>
+                    <th scope="col">Producto</th>
+                    <th scope="col">Movimiento</th>
+                    <th scope="col">Cantidad</th>
+                    <th scope="col">Responsable</th>
                   </tr>
                 </thead>
                 <tbody>

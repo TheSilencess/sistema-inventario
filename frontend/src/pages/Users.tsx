@@ -53,7 +53,12 @@ export default function Users() {
       await save(
         edit ? "patch" : "post",
         edit ? `/users/${edit.id}` : "/users",
-        { name, email, role, active, ...(password ? { password } : {}) },
+        {
+          name, email,
+          ...(!edit || edit.role !== role ? { role } : {}),
+          ...(!edit || edit.active !== active ? { active } : {}),
+          ...(password ? { password } : {}),
+        },
       );
       toast("Usuario guardado correctamente.");
       setEdit(undefined);
@@ -103,16 +108,17 @@ export default function Users() {
           <ErrorBox error={list.error} retry={list.reload} />
         ) : list.data?.items.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap" role="region" aria-label="Tabla de usuarios" tabIndex={0}>
+              <p className="table-hint">Desplaza la tabla para ver todas las columnas →</p>
               <table>
                 <thead>
                   <tr>
-                    <th>Usuario</th>
-                    <th>Correo</th>
-                    <th>Rol</th>
-                    <th>Estado</th>
-                    <th>Creación</th>
-                    <th>Acciones</th>
+                    <th scope="col">Usuario</th>
+                    <th scope="col">Correo</th>
+                    <th scope="col">Rol</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Creación</th>
+                    <th scope="col">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -68,7 +68,7 @@ export function Heading({
   return (
     <div className="heading">
       <div>
-        <div className="eyebrow">OPERACIÓN / BODEGA</div>
+        <div className="eyebrow">KADOSH / GESTIÓN DE INVENTARIO</div>
         <h1>{title}</h1>
         <p>{sub}</p>
       </div>
@@ -91,7 +91,8 @@ export function Empty({
 }
 export function Loading() {
   return (
-    <div className="skeleton-group" aria-label="Cargando">
+    <div className="skeleton-group" role="status" aria-label="Cargando" aria-busy="true">
+      <span className="sr-only">Cargando información…</span>
       {[1, 2, 3].map((n) => (
         <div key={n} className="skeleton" />
       ))}
@@ -106,7 +107,7 @@ export function ErrorBox({
   retry?: () => void;
 }) {
   return (
-    <div className="error-box">
+    <div className="error-box" role="alert">
       {message(error)}
       {retry && (
         <button className="btn secondary" onClick={retry}>
@@ -125,6 +126,7 @@ export function Field({
 }) {
   const fieldId = useId();
   const labelId = fieldId + "-label";
+  let controlId = fieldId;
   const labelControls = (child: ReactNode): ReactNode => {
     if (
       !isValidElement<{
@@ -138,8 +140,9 @@ export function Field({
       typeof child.type === "string" &&
       ["input", "select", "textarea"].includes(child.type)
     ) {
+      controlId = child.props.id || fieldId;
       return cloneElement(child, {
-        id: child.props.id || fieldId,
+        id: controlId,
         "aria-labelledby": labelId,
       });
     }
@@ -149,12 +152,13 @@ export function Field({
       });
     return child;
   };
+  const controls = Children.map(children, labelControls);
   return (
     <div className="field">
-      <label id={labelId} htmlFor={fieldId}>
+      <label id={labelId} htmlFor={controlId}>
         {label}
       </label>
-      {Children.map(children, labelControls)}
+      {controls}
     </div>
   );
 }
