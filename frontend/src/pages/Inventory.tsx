@@ -167,7 +167,7 @@ export default function Inventory() {
                         <Badge stock={v.stock} min={v.minimumStock} />
                       </td>
                       <td>
-                        {money(Number(v.product?.purchasePrice || 0) * v.stock)}
+                        {money(Number(v.product?.salePrice ?? 0) * v.stock)}
                       </td>
                     </tr>
                   ))}
