@@ -117,9 +117,9 @@ export default function Dashboard() {
             <Wallet size={20} />
           </span>
           <div>
-            <small>Valor del inventario</small>
+            <small>Valor comercial del inventario</small>
             <strong>{money(s.value)}</strong>
-            <small>A costo de compra actual</small>
+            <small>Total de existencias × precio de venta</small>
           </div>
         </div>
       </div>
