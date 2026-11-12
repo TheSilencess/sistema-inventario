@@ -24,8 +24,7 @@ dashboardRouter.get(
    COALESCE(SUM(v.stock),0)::bigint AS units,
    COUNT(*) FILTER (WHERE v.stock>0 AND v.stock<=v."minimumStock") AS low,
    COUNT(*) FILTER (WHERE v.stock=0) AS out,
-   COALESCE(SUM(v.stock*p."purchasePrice"),0) AS value
-   FROM "ProductVariant" v JOIN "Product" p ON p.id=v."productId" WHERE v.status='ACTIVE' AND p.status='ACTIVE'`;
+COALESCE(SUM(v.stock*p."salePrice"),0) AS value   FROM "ProductVariant" v JOIN "Product" p ON p.id=v."productId" WHERE v.status='ACTIVE' AND p.status='ACTIVE'`;
         const today = await tx.$queryRaw<
           Array<{ type: string; units: bigint }>
         >`SELECT type, SUM(ABS(quantity))::bigint AS units FROM "InventoryMovement" WHERE ("createdAt" AT TIME ZONE ${tz})::date=(NOW() AT TIME ZONE ${tz})::date GROUP BY type`;
